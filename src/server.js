@@ -36,6 +36,9 @@ const typeDefs = gql`
     # every children in childrenIds gets their parent set as parentId
     addChildrenToTicket(parentId: ID!, childrenIds: [ID!]!): Ticket!
 
+    # every children in childrenIds gets their parent set as parentId returning an array of tickets
+    addChildrenToTicketReturningArray(parentId: ID!, childrenIds: [ID!]!): [Ticket]!
+
     # the ticket with id: childId gets the ticket with id: parentId as its new parent
     setParentOfTicket(parentId: ID!, childId: ID!): Ticket!
 
@@ -63,7 +66,106 @@ const resolvers = {
       return parent.getChildren();
     },
   },
-  Mutation: {}
+  Mutation: {
+    createTicket: async (root, args, context) => {
+      const { title, isCompleted } = args;
+      return models.Ticket.create({ title, isCompleted });
+    },
+    updateTicket: async (root, args, context) => {
+      const { id, title } = args;
+      return models.Ticket.findByPk(id).then((ticket) => {
+        if (!ticket) {
+          throw new Error('Ticket not found');
+        }
+        return ticket.update({ title });
+      });
+    },
+    toggleTicket: async (root, args, context) => {
+      const { id, isCompleted } = args;
+      return models.Ticket.findByPk(id).then((ticket) => {
+        if (!ticket) {
+          throw new Error('Ticket not found');
+        }
+        return ticket.update({ isCompleted });
+      });
+    },
+    removeTicket: async (root, args, context) => {
+      const { id } = args;
+      return models.Ticket.findByPk(id).then((ticket) => {
+        if (!ticket) {
+          return false;
+        }
+        return ticket
+          .destroy({ where: { id } })
+          .then((res) => {
+            return true;
+          })
+          .catch((err) => {
+            return false;
+          });
+      });
+    },
+    addChildrenToTicket: async (root, args, context) => {
+      const { parentId, childrenIds } = args;
+      return models.Ticket.findByPk(parentId).then((ticket) => {
+        if (!ticket) {
+          throw new Error('Parent ticket not found');
+        }
+        return new Promise((resolve, reject) => {
+          childrenIds.forEach(childrenId => {
+            models.Ticket.findByPk(childrenId).then((ticket) => {
+              if (!ticket) {
+                reject(`Children ticket ${childrenId} does not exists`);
+              }
+              resolve(ticket.update({ parentId }))
+            });
+          });
+        })
+      });
+    },
+    addChildrenToTicketReturningArray: async (root, args, context) => {
+      const { parentId, childrenIds } = args;
+      return models.Ticket.findByPk(parentId).then((ticket) => {
+        if (!ticket) {
+          throw new Error('Parent ticket not found');
+        }
+        let promises = []
+        childrenIds.forEach(childrenId => {
+          promises.push(
+            new Promise((resolve, reject) => {
+              models.Ticket.findByPk(childrenId).then((ticket) => {
+                if (!ticket) {
+                  reject(`Children ticket ${childrenId} does not exists`);
+                }
+                resolve(ticket.update({ parentId }))
+              });
+            })
+          )
+        });
+        return Promise.all(promises).then((res) => {
+          return res
+        })
+      })
+    },
+    setParentOfTicket: async (root, args, context) => {
+      const { parentId, childId } = args;
+      return models.Ticket.findByPk(childId).then((ticket) => {
+        if (!ticket) {
+          return false;
+        }
+        return ticket.update({ parentId });
+      });
+    },
+    removeParentFromTicket: async (root, args, context) => {
+      const { id } = args;
+      return models.Ticket.findByPk(id).then((ticket) => {
+        if (!ticket) {
+          return false;
+        }
+        return ticket.update({ parentId: null });
+      });
+    },
+  }
 };
 
 const server = new ApolloServer({
