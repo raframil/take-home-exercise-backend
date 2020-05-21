@@ -1,6 +1,6 @@
-import express from "express";
-import { ApolloServer, gql } from "apollo-server-express";
-import { models } from "./db";
+import express from 'express';
+import { ApolloServer, gql } from 'apollo-server-express';
+import { models } from './db';
 
 const PORT = 4001;
 
@@ -52,8 +52,8 @@ const resolvers = {
     tickets: async (root, args, context) => {
       return models.Ticket.findAll({
         where: {
-          parentId: null
-        }
+          parentId: null,
+        },
       });
     },
     ticket: async (root, args, context) => {
@@ -112,15 +112,19 @@ const resolvers = {
           throw new Error('Parent ticket not found');
         }
         return new Promise((resolve, reject) => {
-          childrenIds.forEach(childrenId => {
-            models.Ticket.findByPk(childrenId).then((ticket) => {
-              if (!ticket) {
-                reject(`Children ticket ${childrenId} does not exists`);
-              }
-              resolve(ticket.update({ parentId }))
-            });
+          childrenIds.forEach((childrenId) => {
+            models.Ticket.findByPk(childrenId)
+              .then((ticket) => {
+                if (!ticket) {
+                  reject(`Children ticket ${childrenId} does not exists`);
+                }
+                resolve(ticket.update({ parentId }));
+              })
+              .catch((error) => {
+                console.log('Error: ', error);
+              });
           });
-        })
+        });
       });
     },
     addChildrenToTicketReturningArray: async (root, args, context) => {
@@ -129,23 +133,27 @@ const resolvers = {
         if (!ticket) {
           throw new Error('Parent ticket not found');
         }
-        let promises = []
-        childrenIds.forEach(childrenId => {
+        let promises = [];
+        childrenIds.forEach((childrenId) => {
           promises.push(
             new Promise((resolve, reject) => {
-              models.Ticket.findByPk(childrenId).then((ticket) => {
-                if (!ticket) {
-                  reject(`Children ticket ${childrenId} does not exists`);
-                }
-                resolve(ticket.update({ parentId }))
-              });
+              models.Ticket.findByPk(childrenId)
+                .then((ticket) => {
+                  if (!ticket) {
+                    reject(`Children ticket ${childrenId} does not exists`);
+                  }
+                  resolve(ticket.update({ parentId }));
+                })
+                .catch((error) => {
+                  console.log('Error: ', error);
+                });
             })
-          )
+          );
         });
         return Promise.all(promises).then((res) => {
-          return res
-        })
-      })
+          return res;
+        });
+      });
     },
     setParentOfTicket: async (root, args, context) => {
       const { parentId, childId } = args;
@@ -165,12 +173,12 @@ const resolvers = {
         return ticket.update({ parentId: null });
       });
     },
-  }
+  },
 };
 
 const server = new ApolloServer({
   typeDefs,
-  resolvers
+  resolvers,
 });
 
 const app = express();
