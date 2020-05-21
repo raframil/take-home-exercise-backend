@@ -44,25 +44,25 @@ const typeDefs = gql`
   }
 `;
 
-/**
- * TODO: Your task is implementing the resolvers. Go through the README first.
- * TODO: Your resolvers below will need to implement the typedefs given above.
- */
-
 const resolvers = {
   Query: {
-    /**
-     * We have implemented this first query for you to set up an initial pattern.
-     */
     tickets: async (root, args, context) => {
       return models.Ticket.findAll({
         where: {
           parentId: null
         }
       });
-    }
+    },
+    ticket: async (root, args, context) => {
+      const { id } = args;
+      return models.Ticket.findByPk(id);
+    },
   },
-  Ticket: {},
+  Ticket: {
+    children: async (parent) => {
+      return parent.getChildren();
+    },
+  },
   Mutation: {}
 };
 
